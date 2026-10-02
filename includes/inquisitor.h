@@ -1,6 +1,7 @@
 #ifndef INQUISITOR_H
 #define INQUISITOR_H
 
+#include <netinet/ether.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -9,8 +10,10 @@
 #define CAPTURE_DEVICE "any"
 
 typedef struct	s_args {
-	struct in_addr	src_addr;
-	struct in_addr	dst_addr;
+	struct in_addr		src_addr;
+	struct ether_addr	src_mac;
+	struct in_addr		dst_addr;
+	struct ether_addr	dst_mac;
 }				t_args;
 
 // debug.c

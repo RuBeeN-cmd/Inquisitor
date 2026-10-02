@@ -3,13 +3,24 @@
 
 #define	FILTER_BUFF_SIZE 128
 
-static void	build_capture_filter(struct in_addr src_addr, char buff[]) {
-	uint32_t ip = ntohl(src_addr.s_addr);
-	snprintf(buff, FILTER_BUFF_SIZE, "arp[14:4] = 0x%08x", ip);
+static void build_capture_filter(t_args *args, char buff[]) {
+	uint32_t ip = ntohl(args->src_addr.s_addr);
+
+	snprintf(buff, FILTER_BUFF_SIZE,
+		"arp[14:4] = 0x%08x and "
+		"arp[8:4] = 0x%02x%02x%02x%02x and "
+		"arp[12:2] = 0x%02x%02x",
+		ip,
+		args->src_mac.ether_addr_octet[0],
+		args->src_mac.ether_addr_octet[1],
+		args->src_mac.ether_addr_octet[2],
+		args->src_mac.ether_addr_octet[3],
+		args->src_mac.ether_addr_octet[4],
+		args->src_mac.ether_addr_octet[5]);
 }
 
-static int apply_filter(pcap_t *handle, const char filter_exp[])
-{
+
+static int apply_filter(pcap_t *handle, const char filter_exp[]) {
     if (!filter_exp) {
         return (0);
     }
@@ -42,7 +53,7 @@ static pcap_t	*create_pcap_handle(t_args *args) {
 	}
 
 	char	filter_buffer[FILTER_BUFF_SIZE] = { 0 };
-	build_capture_filter(args->src_addr, filter_buffer);
+	build_capture_filter(args, filter_buffer);
 	DBG("Capture Filter: %s\n", filter_buffer);
 
 	if (apply_filter(handle, filter_buffer)) {
