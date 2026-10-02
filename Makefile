@@ -16,7 +16,9 @@ OBJ_DIR = objs
 SRC = main.c \
 		utils/endian.c \
 		utils/log.c \
-		utils/ansi_color.c
+		utils/ansi_color.c \
+		parsing/parsing.c \
+		parsing/debug.c
 
 CC = clang
 CFLAGS = -Wall -Werror -Wextra -g3

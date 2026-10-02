@@ -38,4 +38,6 @@ void		set_log_level(t_log_level level);
 char 	*get_log_prefix(t_log_level level);
 void	disable_prefix();
 
+void	parse_env(char *env[]);
+
 #endif
