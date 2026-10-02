@@ -1,19 +1,35 @@
 #include <inquisitor.h>
 #include <pcap.h>
 
-#define	FILTER_BUFF_SIZE 1024
+#define	FILTER_BUFF_SIZE 128
 
-static int	build_capture_filter(struct in_addr src_addr) {
-	char	filter[1024] = "arp.src.proto_ipv4 == ";
-	int		i = ft_strlen(filter);
-	
-	char	*str_src_addr = inet_ntoa(src_addr);
-	int		addr_len = ft_strlen(str_src_addr);
-	ft_strlcpy(filter + i, str_src_addr, FILTER_BUFF_SIZE);
-	i += addr_len;
+static void	build_capture_filter(struct in_addr src_addr, char buff[]) {
+	uint32_t ip = ntohl(src_addr.s_addr);
+	snprintf(buff, FILTER_BUFF_SIZE, "arp[14:4] = 0x%08x", ip);
+}
 
-	DBG("Capture filter: %s\n", filter);
-	return (0);
+static int apply_filter(pcap_t *handle, const char filter_exp[])
+{
+    if (!filter_exp) {
+        return (0);
+    }
+    if (!handle) {
+        ERR("Invalid handle.\n");
+        return (1);
+    }
+    struct bpf_program	fp;
+    if (pcap_compile(handle, &fp, filter_exp, 0, PCAP_NETMASK_UNKNOWN) == -1) {
+        ERR("Couldn't parse filter `%s`: %s\n", filter_exp, pcap_geterr(handle));
+        return (1);
+    }
+    if (pcap_setfilter(handle, &fp) == -1)
+    {
+        ERR( "Couldn't apply filter: %s\n", pcap_geterr(handle));
+        pcap_freecode(&fp);
+        return (1);
+    }
+    pcap_freecode(&fp);
+    return (0);
 }
 
 static pcap_t	*create_pcap_handle(t_args *args) {
@@ -25,13 +41,23 @@ static pcap_t	*create_pcap_handle(t_args *args) {
 		return (NULL);
 	}
 
-	build_capture_filter(args->src_addr);
+	char	filter_buffer[FILTER_BUFF_SIZE] = { 0 };
+	build_capture_filter(args->src_addr, filter_buffer);
+	DBG("Capture Filter: %s\n", filter_buffer);
 
+	if (apply_filter(handle, filter_buffer)) {
+		ERR("Failed to apply filter\n");
+		pcap_close(handle);
+		return (NULL);
+	}
 	return (handle);
 }
 
 int	capture(t_args *args) {
 	pcap_t	*handle = create_pcap_handle(args);
+	if (!handle) {
+		return (1);
+	}
 	pcap_close(handle);
 	return (0);
 }

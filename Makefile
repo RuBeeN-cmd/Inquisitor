@@ -1,10 +1,10 @@
 # ------------ COLORS --------------
 
-_END="\033[0m"
-_RED="\033[0;31m"
-_GREEN="\033[0;32m"
-_YELLOW="\033[0;33m"
-_CYAN="\033[0;36m"
+_END=\033[0m
+_RED=\033[0;31m
+_GREEN=\033[0;32m
+_YELLOW=\033[0;33m
+_CYAN=\033[0;36m
 
 # ----------------------------------
 
@@ -42,7 +42,7 @@ INC += -I$(LIBFT_INCLUDE)
 all: $(NAME)
 
 $(NAME): $(LIB) $(OBJ_DIR) $(OBJ)
-	@echo $(_GREEN)Compiling $(OBJ)...$(_END)
+	@printf "$(_GREEN)Compiling $(OBJ)...$(_END)\n"
 	@$(CC) $(CFLAGS) $(OBJ) $(LIBFLAGS) -o $@
 
 $(OBJ_DIR):
@@ -50,7 +50,7 @@ $(OBJ_DIR):
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
-	@echo $(_CYAN)Compiling $<...$(_END)
+	@printf "$(_CYAN)Compiling $<...$(_END)\n"
 	@$(CC) -o $@ -c $< $(CFLAGS) $(INC)
 
 # ------- LIBFT -------
@@ -63,15 +63,21 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 run: up
 	@docker compose run --rm --build -it inquisitor zsh || true
 
-up:
+dev: wireshark
+	@docker compose run --rm --build -it -v $(CURDIR):/app inquisitor zsh || true
+
+wireshark:
 	@docker compose --profile tools up -d --build
 
+up:
+	@docker compose up -d --build
+
 clean:
-	@echo $(_YELLOW)Cleaning $(OBJ)...$(_END)
+	@printf "$(_YELLOW)Cleaning $(OBJ)...$(_END)\n"
 	@rm -rf $(OBJ_DIR)
 
 fclean: clean
-	@echo $(_RED)Cleaning $(NAME)...$(_END)
+	@printf "$(_RED)Cleaning $(NAME)...$(_END)\n"
 	@rm -f $(NAME)
 
 down: fclean
@@ -79,4 +85,4 @@ down: fclean
 
 re: fclean all
 
-.PHONY: all clean fclean re run up down
+.PHONY: all clean fclean re run dev up down
