@@ -1,6 +1,6 @@
 #include <inquisitor.h>
 
-int main(int argc, char *argv[], char *env[]) {
+int	main(int argc, char *argv[], char *env[]) {
 	set_log_level(LEVEL_DEBUG);
 	parse_env(env);
 
@@ -9,5 +9,6 @@ int main(int argc, char *argv[], char *env[]) {
 		ERR("Usage: %s <ip-src> <mac-src> <ip-dst> <mac-dst>\n", argv[0]);
 		return (1);
 	}
+	capture();
 	return (0);
 }

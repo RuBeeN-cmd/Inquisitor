@@ -18,7 +18,8 @@ SRC = main.c \
 		utils/log.c \
 		utils/ansi_color.c \
 		parsing/parsing.c \
-		parsing/debug.c
+		parsing/debug.c \
+		capture.c
 
 CC = clang
 CFLAGS = -Wall -Werror -Wextra -g3
@@ -33,7 +34,7 @@ LIBFT = $(LIBFT_DIR)/libft.a
 
 LIB = $(LIBFT)
 LIBFLAGS = -L$(dir $(LIBFT))
-LIBFLAGS += -lft
+LIBFLAGS += -lft -lpcap
 INC += -I$(LIBFT_INCLUDE)
 
 # ---------- Compilation -----------
@@ -60,7 +61,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 # ---------- Public targets ----------
 
 run: up
-	@docker compose run --rm --build -it inquisitor ash || true
+	@docker compose run --rm --build -it inquisitor zsh || true
 
 up:
 	@docker compose up -d --build
