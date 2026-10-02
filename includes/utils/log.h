@@ -2,7 +2,7 @@
 #define UTILS_LOG_H
 
 #include <utils/ansi_color.h>
-#include <ft_printf_fd.h>
+#include <stdio.h>
 #include <stddef.h>
 
 typedef enum e_log_level {
@@ -22,7 +22,7 @@ typedef enum e_log_level {
 		if (_level_ <= LEVEL_ERROR) { \
 			char *_prefix_ = _is_prefix_ ? get_log_prefix(_level_) : ""; \
 			int _fd_ = _level_ >= LEVEL_WARNING ? 2 : 1; \
-			ft_printf_fd(_fd_, "%s" _format_, _prefix_, ##__VA_ARGS__); \
+			dprintf(_fd_, "%s" _format_, _prefix_, ##__VA_ARGS__); \
 		} \
 	} \
 } while(0)
