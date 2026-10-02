@@ -4,3 +4,4 @@ objs/
 inquisitor
 rsc
 docker-compose.yml
+.vscode

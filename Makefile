@@ -13,18 +13,34 @@ NAME = inquisitor
 SRC_DIR = srcs
 OBJ_DIR = objs
 
-SRC = main.c
+SRC = main.c \
+		utils/endian.c \
+		utils/log.c \
+		utils/ansi_color.c
 
 CC = clang
 CFLAGS = -Wall -Werror -Wextra -g3
 INC = -Iincludes
 OBJ = $(addprefix $(OBJ_DIR)/, $(SRC:.c=.o))
 
+# -------------- Libs --------------
+
+LIBFT_DIR = libs/libft
+LIBFT_INCLUDE = $(LIBFT_DIR)/includes
+LIBFT = $(LIBFT_DIR)/libft.a
+
+LIB = $(LIBFT)
+LIBFLAGS = -L$(dir $(LIBFT))
+LIBFLAGS += -lft
+INC += -I$(LIBFT_INCLUDE)
+
+# ---------- Compilation -----------
+
 all: $(NAME)
 
-$(NAME): $(OBJ_DIR) $(OBJ)
+$(NAME): $(LIB) $(OBJ_DIR) $(OBJ)
 	@echo $(_GREEN)Compiling $(OBJ)...$(_END)
-	@$(CC) $(CFLAGS) $(OBJ) -o $@
+	@$(CC) $(CFLAGS) $(OBJ) $(LIBFLAGS) -o $@
 
 $(OBJ_DIR):
 	@mkdir -p $@
@@ -33,7 +49,12 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	@echo $(_CYAN)Compiling $<...$(_END)
 	@$(CC) -o $@ -c $< $(CFLAGS) $(INC)
-	
+
+# ------- LIBFT -------
+
+%.a:
+	@make -C $(dir $@)
+
 # ---------- Public targets ----------
 
 run: up
