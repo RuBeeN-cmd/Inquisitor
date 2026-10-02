@@ -8,8 +8,8 @@ void dbg_show_raw_args(int argc, char *argv[]) {
 	}
 }
 
-void	dbg_show_args(t_args args) {
+void	dbg_show_args(t_args *args) {
 	DBG("------------ Args ------------\n");
-	DBG("Source address:\t%s\n", inet_ntoa(args.src_addr));
-	DBG("Dest address:\t%s\n", inet_ntoa(args.dst_addr));
+	DBG("Source address:\t%s\n", inet_ntoa(args->src_addr));
+	DBG("Dest address:\t%s\n", inet_ntoa(args->dst_addr));
 }

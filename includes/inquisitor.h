@@ -15,12 +15,12 @@ typedef struct	s_args {
 
 // debug.c
 void	dbg_show_raw_args(int argc, char *argv[]);
-void	dbg_show_args(t_args args);
+void	dbg_show_args(t_args *args);
 
 // parsing.c
 int	parse_args(int argc, char *argv[], t_args *args);
 
 // capture.c
-int	capture();
+int	capture(t_args *args);
 
 #endif

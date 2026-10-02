@@ -21,6 +21,6 @@ int	parse_args(int argc, char *argv[], t_args *args) {
 		return (1);
 	}
 
-	dbg_show_args(*args);
+	dbg_show_args(args);
 	return (0);
 }

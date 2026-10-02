@@ -9,6 +9,6 @@ int	main(int argc, char *argv[], char *env[]) {
 		ERR("Usage: %s <ip-src> <mac-src> <ip-dst> <mac-dst>\n", argv[0]);
 		return (1);
 	}
-	capture();
+	capture(&args);
 	return (0);
 }

@@ -22,18 +22,35 @@ services:
     networks:
       - net
 
+  wireshark:
+    image: lscr.io/linuxserver/wireshark:latest
+    environment:
+      - TZ=Europe/Paris
+    volumes:
+      - wireshark-config:/config
+    ports:
+      - 3002:3001
+    cap_add:
+      - NET_ADMIN
+    shm_size: "1gb"
+    restart: unless-stopped
+    profiles: ["tools"]
+    networks:
+      - net
+
   inquisitor:
     image: inquisitor
     build:
       context: .
       dockerfile: rsc/docker/Dockerfile
-    profiles: ["tools"]
+    profiles: ["prod"]
     networks:
       - net
     
 volumes:
   server-data:
   client-config:
+  wireshark-config:
 
 networks:
   net:

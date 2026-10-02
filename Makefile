@@ -64,7 +64,7 @@ run: up
 	@docker compose run --rm --build -it inquisitor zsh || true
 
 up:
-	@docker compose up -d --build
+	@docker compose --profile tools up -d --build
 
 clean:
 	@echo $(_YELLOW)Cleaning $(OBJ)...$(_END)
@@ -75,7 +75,7 @@ fclean: clean
 	@rm -f $(NAME)
 
 down: fclean
-	@docker compose --profile tools down -v
+	@docker compose --profile tools --profile prod down -v
 
 re: fclean all
 
