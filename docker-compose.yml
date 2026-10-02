@@ -1,0 +1,39 @@
+services:
+  server:
+    image: fauria/vsftpd
+    ports:
+      - 2121:21
+    environment:
+      - "FTP_USER=${FTP_USER}"
+      - "FTP_PASS=${FTP_PASS}"
+      - "PASV_ADDRESS=server"
+      - "PASV_ADDR_RESOLVE=YES"
+    volumes:
+      - server-data:/home/vsftpd/
+    networks:
+      - net
+      
+  client:
+    image: lscr.io/linuxserver/filezilla:latest
+    volumes:
+      - client-config:/config
+    ports:
+      - 3001:3001
+    networks:
+      - net
+
+  inquisitor:
+    image: inquisitor
+    build:
+      context: .
+      dockerfile: rsc/docker/Dockerfile
+    profiles: ["tools"]
+    networks:
+      - net
+    
+volumes:
+  server-data:
+  client-config:
+
+networks:
+  net:
