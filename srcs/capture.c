@@ -4,19 +4,22 @@
 #define	FILTER_BUFF_SIZE 128
 
 static void build_capture_filter(t_args *args, char buff[]) {
-	uint32_t ip = ntohl(args->src_addr.s_addr);
+	uint32_t src_ip = ntohl(args->src_addr.s_addr);
+	uint32_t dst_ip = ntohl(args->dst_addr.s_addr);
 
 	snprintf(buff, FILTER_BUFF_SIZE,
-		"arp[14:4] = 0x%08x and "
+		"(arp[14:4] = 0x%08x and "
 		"arp[8:4] = 0x%02x%02x%02x%02x and "
-		"arp[12:2] = 0x%02x%02x",
-		ip,
+		"arp[12:2] = 0x%02x%02x and "
+		"arp[18:4] = 0x%08x)",
+		src_ip,
 		args->src_mac.ether_addr_octet[0],
 		args->src_mac.ether_addr_octet[1],
 		args->src_mac.ether_addr_octet[2],
 		args->src_mac.ether_addr_octet[3],
 		args->src_mac.ether_addr_octet[4],
-		args->src_mac.ether_addr_octet[5]);
+		args->src_mac.ether_addr_octet[5],
+		dst_ip);
 }
 
 
@@ -64,9 +67,20 @@ static pcap_t	*create_pcap_handle(t_args *args) {
 	return (handle);
 }
 
+static void handle_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *packet) {
+      (void)user;
+      (void)packet;
+      DBG("Captured packet: %u bytes\n", header->caplen);
+}
+
 int	capture(t_args *args) {
 	pcap_t	*handle = create_pcap_handle(args);
 	if (!handle) {
+		return (1);
+	}
+	if (pcap_loop(handle, 1, handle_packet, NULL) == PCAP_ERROR) {
+		ERR("pcap_loop: %s\n", pcap_geterr(handle));
+		pcap_close(handle);
 		return (1);
 	}
 	pcap_close(handle);
