@@ -8,42 +8,42 @@ static void build_capture_filter(t_args *args, char buff[]) {
 	uint32_t dst_ip = ntohl(args->dst_addr.s_addr);
 
 	snprintf(buff, FILTER_BUFF_SIZE,
-		"(arp[14:4] = 0x%08x and "
-		"arp[8:4] = 0x%02x%02x%02x%02x and "
+		"(arp[8:4] = 0x%02x%02x%02x%02x and "
 		"arp[12:2] = 0x%02x%02x and "
-		"arp[18:4] = 0x%08x)",
-		src_ip,
+		"arp[14:4] = 0x%08x and "
+		"arp[24:4] = 0x%08x)",
 		args->src_mac.ether_addr_octet[0],
 		args->src_mac.ether_addr_octet[1],
 		args->src_mac.ether_addr_octet[2],
 		args->src_mac.ether_addr_octet[3],
 		args->src_mac.ether_addr_octet[4],
 		args->src_mac.ether_addr_octet[5],
+		src_ip,
 		dst_ip);
 }
 
 
 static int apply_filter(pcap_t *handle, const char filter_exp[]) {
-    if (!filter_exp) {
-        return (0);
-    }
-    if (!handle) {
-        ERR("Invalid handle.\n");
-        return (1);
-    }
-    struct bpf_program	fp;
-    if (pcap_compile(handle, &fp, filter_exp, 0, PCAP_NETMASK_UNKNOWN) == -1) {
-        ERR("Couldn't parse filter `%s`: %s\n", filter_exp, pcap_geterr(handle));
-        return (1);
-    }
-    if (pcap_setfilter(handle, &fp) == -1)
-    {
-        ERR( "Couldn't apply filter: %s\n", pcap_geterr(handle));
-        pcap_freecode(&fp);
-        return (1);
-    }
-    pcap_freecode(&fp);
-    return (0);
+	if (!filter_exp) {
+		return (0);
+	}
+	if (!handle) {
+		ERR("Invalid handle.\n");
+		return (1);
+	}
+	struct bpf_program	fp;
+	if (pcap_compile(handle, &fp, filter_exp, 0, PCAP_NETMASK_UNKNOWN) == -1) {
+		ERR("Couldn't parse filter `%s`: %s\n", filter_exp, pcap_geterr(handle));
+		return (1);
+	}
+	if (pcap_setfilter(handle, &fp) == -1)
+	{
+		ERR( "Couldn't apply filter: %s\n", pcap_geterr(handle));
+		pcap_freecode(&fp);
+		return (1);
+	}
+	pcap_freecode(&fp);
+	return (0);
 }
 
 static pcap_t	*create_pcap_handle(t_args *args) {
@@ -68,9 +68,9 @@ static pcap_t	*create_pcap_handle(t_args *args) {
 }
 
 static void handle_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *packet) {
-      (void)user;
-      (void)packet;
-      DBG("Captured packet: %u bytes\n", header->caplen);
+	  (void)user;
+	  (void)packet;
+	  DBG("Captured packet: %u bytes\n", header->caplen);
 }
 
 int	capture(t_args *args) {

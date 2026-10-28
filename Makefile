@@ -64,7 +64,7 @@ run: up
 	@docker compose run --rm --build -it inquisitor zsh || true
 
 dev: wireshark
-	@docker compose run --rm --build -it -v $(CURDIR):/app inquisitor zsh || true
+	@docker compose run --rm --build -it -v '$(CURDIR):/app' inquisitor zsh || true
 
 wireshark:
 	@docker compose --profile tools up -d --build
