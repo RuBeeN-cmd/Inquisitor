@@ -26,7 +26,7 @@ void	dbg_show_args(t_args *args);
 int	parse_args(int argc, char *argv[], t_args *args);
 
 // capture.c
-int	capture(t_args *args);
+int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server);
 
 // mac.c
 int	get_mac(const char *ifname, struct ether_addr *mac);
