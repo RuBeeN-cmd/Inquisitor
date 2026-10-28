@@ -19,7 +19,9 @@ SRC = main.c \
 		utils/ansi_color.c \
 		parsing/parsing.c \
 		parsing/debug.c \
-		capture.c
+		capture.c \
+		send.c \
+		mac.c
 
 CC = clang
 CFLAGS = -Wall -Werror -Wextra -g3
@@ -34,7 +36,7 @@ LIBFT = $(LIBFT_DIR)/libft.a
 
 LIB = $(LIBFT)
 LIBFLAGS = -L$(dir $(LIBFT))
-LIBFLAGS += -lft -lpcap
+LIBFLAGS += -lft -lpcap -lnet
 INC += -I$(LIBFT_INCLUDE)
 
 # ---------- Compilation -----------

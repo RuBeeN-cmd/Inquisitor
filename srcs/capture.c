@@ -1,7 +1,7 @@
 #include <inquisitor.h>
 #include <pcap.h>
 
-#define	FILTER_BUFF_SIZE 128
+#define	FILTER_BUFF_SIZE 256
 
 static void build_capture_filter(t_args *args, char buff[]) {
 	uint32_t src_ip = ntohl(args->src_addr.s_addr);
@@ -68,9 +68,9 @@ static pcap_t	*create_pcap_handle(t_args *args) {
 }
 
 static void handle_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *packet) {
-	  (void)user;
-	  (void)packet;
-	  DBG("Captured packet: %u bytes\n", header->caplen);
+	(void)user;
+	(void)packet;
+	DBG("Captured packet: %u bytes\n", header->caplen);
 }
 
 int	capture(t_args *args) {

@@ -4,10 +4,12 @@
 #include <netinet/ether.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <libnet.h>
 
 #include <utils/log.h>
 
-#define CAPTURE_DEVICE "any"
+#define CAPTURE_DEVICE	"any"
+#define IFACE_NAME		"eth0"
 
 typedef struct	s_args {
 	struct in_addr		src_addr;
@@ -25,5 +27,13 @@ int	parse_args(int argc, char *argv[], t_args *args);
 
 // capture.c
 int	capture(t_args *args);
+
+// mac.c
+int	get_mac(const char *ifname, struct ether_addr *mac);
+
+// send.c
+libnet_ptag_t	build_arp_reply(struct ether_addr *src_mac, struct in_addr *src_addr, struct ether_addr *dst_mac, struct in_addr *dst_addr, libnet_t *l);
+void			destroy_arp_reply(libnet_t *l);
+void			send_arp_reply(libnet_t *l);
 
 #endif
