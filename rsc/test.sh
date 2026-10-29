@@ -9,4 +9,4 @@ ping -c1 -W1 "$SERVER_IP" >/dev/null
 CLIENT_MAC=$(ip neigh show ${CLIENT_IP} | awk '{print $5}')
 SERVER_MAC=$(ip neigh show ${SERVER_IP} | awk '{print $5}')
 
-./inquisitor "${CLIENT_IP}" "${CLIENT_MAC}" "${SERVER_IP}" "${SERVER_MAC}"
+./inquisitor "${CLIENT_IP}" "${CLIENT_MAC}" "${SERVER_IP}" "${SERVER_MAC}" "$@"

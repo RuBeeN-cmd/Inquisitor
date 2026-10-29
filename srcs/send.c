@@ -19,7 +19,22 @@ void	destroy_arp_reply(libnet_t *l) {
 	libnet_destroy(l);
 }
 
-void	send_arp_reply(libnet_t *l) {
-	if (libnet_write(l) == -1)
+int	send_arp_reply(libnet_t *l) {
+	if (libnet_write(l) == -1) {
 		ERR("Failed to send ARP reply.\n");
+		return (1);
+	}
+	return (0);
+}
+
+int	send_arp(libnet_t *l, char target[]) {
+	DBG("Sending %sARP%s Reply to %s%s%s\n",
+		get_color(COLOR_GREEN), get_color(COLOR_RESET),
+		get_color(COLOR_BLUE), target, get_color(COLOR_RESET));
+	
+	if (send_arp_reply(l)) {
+		WARN("Failed to send ARP Reply to %s\n", target);
+		return (1);
+	}
+	return (0);
 }
