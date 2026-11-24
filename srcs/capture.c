@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
+#include <signal.h>
 
 #define	FILTER_BUFF_SIZE 256
 #define	POISON_INTERVAL 2
@@ -20,11 +21,19 @@
 typedef struct	s_capture_ctx {
 	uint32_t	link_hdr_len;
 	const char	*write_dir;				// -w target dir, NULL if disabled
+	int			verbose;				// -v: print every FTP line, not just filenames
 	int			xfer_active;			// a data transfer is in progress
 	char		xfer_name[XFER_NAME_SIZE];	// filename from RETR/STOR ("" for LIST)
 	size_t		xfer_bytes;				// bytes seen on the data channel
 	int			xfer_fd;				// open output file, -1 if not writing
 }				t_capture_ctx;
+
+static volatile sig_atomic_t	g_stop = 0;
+
+static void	on_stop(int sig) {
+	(void)sig;
+	g_stop = 1;
+}
 
 static void build_ftp_filter(t_args *args, char buff[]) {
 	char	src[INET_ADDRSTRLEN] = { 0 };
@@ -119,8 +128,9 @@ static int reply_code(const u_char *line, int len) {
 static void ftp_end_transfer(t_capture_ctx *ctx) {
 	if (!ctx->xfer_active)
 		return;
-	INFO("[data] %zu bytes transferred (%s)\n",
-		ctx->xfer_bytes, ctx->xfer_name[0] ? ctx->xfer_name : "listing");
+	if (ctx->verbose)
+		INFO("[data] %zu bytes transferred (%s)\n",
+			ctx->xfer_bytes, ctx->xfer_name[0] ? ctx->xfer_name : "listing");
 	if (ctx->xfer_fd >= 0)
 		close(ctx->xfer_fd);
 	ctx->xfer_fd = -1;
@@ -146,7 +156,7 @@ static void ftp_start_transfer(t_capture_ctx *ctx, const u_char *name, int namel
 		ctx->xfer_fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (ctx->xfer_fd < 0)
 			ERR("Cannot open `%s`: %s\n", path, strerror(errno));
-		else
+		else if (ctx->verbose)
 			INFO("[data] writing to %s\n", path);
 	}
 }
@@ -163,7 +173,8 @@ static void handle_ftp_control(t_capture_ctx *ctx, const u_char *payload, int le
 		if (llen > 0 && p[llen - 1] == '\r')
 			llen--;
 		if (llen > 0) {
-			INFO("[21][%s]: %.*s\n", from_server ? "Server" : "Client", llen, p);
+			if (ctx->verbose)
+				INFO("[21][%s]: %.*s\n", from_server ? "Server" : "Client", llen, p);
 			if (from_server) {
 				int code = reply_code(p, llen);
 				if (ctx->xfer_active && (code == 226 || (code >= 400 && code < 600)))
@@ -258,12 +269,21 @@ int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
 	t_capture_ctx	ctx = {
 		.link_hdr_len = link_header_len(pcap_datalink(handle)),
 		.write_dir = args->write_dir,
+		.verbose = args->verbose,
 		.xfer_active = 0,
 		.xfer_fd = -1,
 	};
 	time_t			last_poison = 0;
 
-	while (1) {
+	// Catch Ctrl+C so the main loop can exit and ARP tables get restored.
+	// No SA_RESTART: a signal interrupts poll() instead of resuming it.
+	struct sigaction	sa;
+	ft_bzero(&sa, sizeof(sa));
+	sa.sa_handler = on_stop;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+
+	while (!g_stop) {
 		struct pollfd	pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
 		poll(&pfd, 1, 1000);
 		pcap_dispatch(handle, -1, handle_packet, (u_char *)&ctx);
@@ -274,6 +294,7 @@ int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
 			last_poison = time(NULL);
 		}
 	}
+	ftp_end_transfer(&ctx);
 	pcap_close(handle);
 	return (0);
 }

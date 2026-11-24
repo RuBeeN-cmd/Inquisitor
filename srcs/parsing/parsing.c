@@ -4,6 +4,7 @@ int	parse_args(int argc, char *argv[], t_args *args) {
 	dbg_show_raw_args(argc, argv);
 
 	args->write_dir = NULL;
+	args->verbose = 0;
 
 	char	*pos[4];
 	int		np = 0;
@@ -14,6 +15,8 @@ int	parse_args(int argc, char *argv[], t_args *args) {
 				return (1);
 			}
 			args->write_dir = argv[++i];
+		} else if (argv[i][0] == '-' && argv[i][1] == 'v' && argv[i][2] == '\0') {
+			args->verbose = 1;
 		} else if (np < 4) {
 			pos[np++] = argv[i];
 		} else {

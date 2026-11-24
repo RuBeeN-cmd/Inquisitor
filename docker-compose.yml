@@ -4,8 +4,8 @@ services:
     ports:
       - 2121:21
     environment:
-      - "FTP_USER=${FTP_USER}"
-      - "FTP_PASS=${FTP_PASS}"
+      - "FTP_USER=${FTP_USER:-user}"
+      - "FTP_PASS=${FTP_PASS:-pass}"
       - "PASV_ADDRESS=server"
       - "PASV_ADDR_RESOLVE=YES"
     volumes:
@@ -17,6 +17,10 @@ services:
     image: lscr.io/linuxserver/filezilla:latest
     volumes:
       - client-config:/config
+      # Seed FileZilla's config: force active mode + pre-register the lab server.
+      # Read-only so a container restart (or `down -v`) can never lose it.
+      - ./rsc/filezilla/filezilla.xml:/config/.config/filezilla/filezilla.xml:ro
+      - ./rsc/filezilla/sitemanager.xml:/config/.config/filezilla/sitemanager.xml:ro
     ports:
       - 3001:3001
     networks:

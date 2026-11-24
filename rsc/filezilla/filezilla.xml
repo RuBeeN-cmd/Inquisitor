@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<FileZilla3 version="3.63.0" platform="*">
+    <Settings>
+        <!-- 0 = active FTP, 1 = passive. Active so inquisitor sees the port-20 data channel. -->
+        <Setting name="Use Pasv mode">0</Setting>
+        <Setting name="Limit local ports">0</Setting>
+    </Settings>
+</FileZilla3>
