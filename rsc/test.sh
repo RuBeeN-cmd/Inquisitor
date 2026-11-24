@@ -26,4 +26,4 @@ SERVER_MAC=$(ip neigh show "${SERVER_IP}" | awk '{print $5}')
 
 echo "inquisitor: ${CLIENT_HOST}(${CLIENT_IP}/${CLIENT_MAC}) <-> ${SERVER_HOST}(${SERVER_IP}/${SERVER_MAC})"
 
-./inquisitor "${CLIENT_IP}" "${CLIENT_MAC}" "${SERVER_IP}" "${SERVER_MAC}" "$@"
+exec ./inquisitor "${CLIENT_IP}" "${CLIENT_MAC}" "${SERVER_IP}" "${SERVER_MAC}" "$@"
