@@ -70,7 +70,7 @@ static int apply_filter(pcap_t *handle, const char filter_exp[]) {
 
 static pcap_t	*create_pcap_handle(const char *filter_exp) {
 	char	errbuf[PCAP_ERRBUF_SIZE] = { 0 };
-	pcap_t	*handle = pcap_open_live(CAPTURE_DEVICE, BUFSIZ, 1, 1000, errbuf);
+	pcap_t	*handle = pcap_open_live(CAPTURE_DEVICE, 65535, 1, 1000, errbuf);
 
 	if (!handle) {
 		ERR("pcap_open_live(%s): %s\n", CAPTURE_DEVICE, errbuf);
