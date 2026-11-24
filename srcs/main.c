@@ -7,7 +7,6 @@
 
 #define IP_FORWARD_PATH "/proc/sys/net/ipv4/ip_forward"
 
-// Current kernel IPv4 forwarding state: 1 on, 0 off, -1 unknown.
 static int	read_ip_forward(void) {
 	char	buf[8] = { 0 };
 	int		fd = open(IP_FORWARD_PATH, O_RDONLY);
@@ -67,15 +66,12 @@ int	main(int argc, char *argv[], char *env[]) {
 	build_arp_reply(&own_mac, &(args.src_addr), &(args.dst_mac), &(args.dst_addr), l_client);
 	build_arp_reply(&own_mac, &(args.dst_addr), &(args.src_mac), &(args.src_addr), l_server);
 
-	// Relay traffic transparently so the FTP session survives the MITM.
-	// Remember the old value to restore it when we stop.
 	int	old_forward = read_ip_forward();
-	write_ip_forward(1);
+	if (old_forward != 1)
+		write_ip_forward(1);
 
 	int	ret = capture(&args, l_client, l_server);
 
-	// Ctrl+C landed: undo the poison by announcing the real MAC <-> IP pairs.
-	// ARP is best-effort, so repeat a few times to be sure the caches heal.
 	INFO("Restoring ARP tables...\n");
 	libnet_clear_packet(l_client);
 	build_arp_reply(&(args.src_mac), &(args.src_addr), &(args.dst_mac), &(args.dst_addr), l_client);

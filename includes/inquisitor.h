@@ -16,8 +16,8 @@ typedef struct	s_args {
 	struct ether_addr	src_mac;
 	struct in_addr		dst_addr;
 	struct ether_addr	dst_mac;
-	const char			*write_dir;		// -w <dir>: dump transferred files, NULL if off
-	int					verbose;		// -v: show all FTP traffic, not just filenames
+	const char			*write_dir;
+	int					verbose;
 }				t_args;
 
 // debug.c

@@ -17,8 +17,6 @@ services:
     image: lscr.io/linuxserver/filezilla:latest
     volumes:
       - client-config:/config
-      # Seed FileZilla's config: force active mode + pre-register the lab server.
-      # Read-only so a container restart (or `down -v`) can never lose it.
       - ./rsc/filezilla/filezilla.xml:/config/.config/filezilla/filezilla.xml:ro
       - ./rsc/filezilla/sitemanager.xml:/config/.config/filezilla/sitemanager.xml:ro
     ports:
@@ -47,13 +45,33 @@ services:
     build:
       context: .
       dockerfile: rsc/docker/Dockerfile
+    command: ["./rsc/test.sh"]
+    environment:
+      - "CLIENT_HOST=${CLIENT_HOST:-client}"
+      - "SERVER_HOST=${SERVER_HOST:-server}"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     sysctls:
       - net.ipv4.ip_forward=1
       - net.ipv4.conf.all.send_redirects=0
     profiles: ["prod"]
     networks:
       - net
-    
+
+  tester:
+    image: inquisitor
+    command: ["./rsc/ftp_scenario.sh"]
+    environment:
+      - "SERVER_HOST=${SERVER_HOST:-server}"
+      - "FTP_USER=${FTP_USER:-user}"
+      - "FTP_PASS=${FTP_PASS:-pass}"
+    depends_on:
+      - server
+    profiles: ["tests"]
+    networks:
+      - net
+
 volumes:
   server-data:
   client-config:

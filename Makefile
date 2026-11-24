@@ -83,8 +83,15 @@ fclean: clean
 	@rm -f $(NAME)
 
 down: fclean
-	@docker compose --profile tools --profile prod down -v
+	@docker compose --profile tools --profile prod --profile tests down -v
 
 re: fclean all
 
-.PHONY: all clean fclean re run dev up down
+test:
+	@docker compose up -d --build server
+	@docker compose --profile prod build inquisitor
+	@CLIENT_HOST=tester docker compose --profile prod --profile tests up -d inquisitor tester
+	@printf "$(_GREEN)Following inquisitor output (Ctrl+C stops watching; 'make down' tears it down)...$(_END)\n"
+	@docker compose logs -f inquisitor
+
+.PHONY: all clean fclean re run dev up down test

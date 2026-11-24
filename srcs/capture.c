@@ -20,12 +20,12 @@
 
 typedef struct	s_capture_ctx {
 	uint32_t	link_hdr_len;
-	const char	*write_dir;				// -w target dir, NULL if disabled
-	int			verbose;				// -v: print every FTP line, not just filenames
-	int			xfer_active;			// a data transfer is in progress
-	char		xfer_name[XFER_NAME_SIZE];	// filename from RETR/STOR ("" for LIST)
-	size_t		xfer_bytes;				// bytes seen on the data channel
-	int			xfer_fd;				// open output file, -1 if not writing
+	const char	*write_dir;
+	int			verbose;
+	int			xfer_active;
+	char		xfer_name[XFER_NAME_SIZE];
+	size_t		xfer_bytes;
+	int			xfer_fd;
 }				t_capture_ctx;
 
 static volatile sig_atomic_t	g_stop = 0;
@@ -102,7 +102,6 @@ static uint32_t link_header_len(int datalink) {
 	}
 }
 
-// Last path component, so a RETR/STOR path can't write outside write_dir.
 static const char *ftp_basename(const char *name) {
 	const char	*base = name;
 
@@ -113,7 +112,6 @@ static const char *ftp_basename(const char *name) {
 	return (base);
 }
 
-// 3-digit FTP reply code at the start of a server line, or -1.
 static int reply_code(const u_char *line, int len) {
 	if (len < 3)
 		return (-1);
@@ -124,7 +122,6 @@ static int reply_code(const u_char *line, int len) {
 	return ((line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0'));
 }
 
-// Flush the current transfer: report bytes, close the output file.
 static void ftp_end_transfer(t_capture_ctx *ctx) {
 	if (!ctx->xfer_active)
 		return;
@@ -137,7 +134,6 @@ static void ftp_end_transfer(t_capture_ctx *ctx) {
 	ctx->xfer_active = 0;
 }
 
-// A RETR/STOR/LIST started: arm counting, and open the output file if -w is on.
 static void ftp_start_transfer(t_capture_ctx *ctx, const u_char *name, int namelen) {
 	ftp_end_transfer(ctx);
 	if (namelen < 0)
@@ -195,7 +191,6 @@ static void handle_ftp_control(t_capture_ctx *ctx, const u_char *payload, int le
 	}
 }
 
-// Data channel (port 20): count bytes, and write them out when -w is on.
 static void handle_ftp_data(t_capture_ctx *ctx, const u_char *payload, int len) {
 	if (!ctx->xfer_active)
 		return;
@@ -275,8 +270,6 @@ int	capture(t_args *args, libnet_t *l_client, libnet_t *l_server) {
 	};
 	time_t			last_poison = 0;
 
-	// Catch Ctrl+C so the main loop can exit and ARP tables get restored.
-	// No SA_RESTART: a signal interrupts poll() instead of resuming it.
 	struct sigaction	sa;
 	ft_bzero(&sa, sizeof(sa));
 	sa.sa_handler = on_stop;

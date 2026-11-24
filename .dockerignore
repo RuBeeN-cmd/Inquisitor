@@ -2,6 +2,7 @@
 .env
 objs/
 inquisitor
-rsc
+rsc/filezilla
+rsc/docker
 docker-compose.yml
 .vscode
